@@ -5,6 +5,8 @@ from typing import Literal, NamedTuple
 import numpy as np
 import numpy.typing as npt
 
+from scipy.linalg import svd
+
 from ..typeutil import eincheck as ec
 
 
@@ -12,12 +14,19 @@ class LegPartition(NamedTuple):
     leg0: list[int]
     leg1: list[int]
 
+_driver: Literal["gesdd", "gesvd"] = "gesdd"
+
+def set_svd_driver(driver: Literal["gesdd", "gesvd"]) -> None:
+    global _driver
+    if driver not in ["gesdd", "gesvd"]:
+        raise ValueError(f"Invalid SVD driver: {driver}")
+    _driver = driver
 
 def compact_svd(
     A: npt.NDArray, nkeep: int | None = None, tol: float = 1e-12
 ) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
     assert A.ndim == 2
-    U, S, Vh = np.linalg.svd(A, full_matrices=False)
+    U, S, Vh = svd(A, full_matrices=False, lapack_driver=_driver)
     V = Vh.conj().T
     dimS = sum([1 if x > tol * S[0] else 0 for x in S])
     dimS = dimS if nkeep is None else min(dimS, nkeep)
